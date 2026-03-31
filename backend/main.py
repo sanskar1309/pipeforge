@@ -1,4 +1,8 @@
 import os
+import httpx
+from dotenv import load_dotenv
+
+load_dotenv()
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Any, Dict, List, Optional
@@ -16,6 +20,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+
+# ── Pipeline models ────────────────────────────────────────────────────────────
 
 class NodeModel(BaseModel):
     id: str
@@ -43,6 +52,20 @@ class PipelineResult(BaseModel):
     is_dag: bool
 
 
+# ── LLM models ─────────────────────────────────────────────────────────────────
+
+class LLMRequest(BaseModel):
+    model: str
+    system: str = ""
+    prompt: str
+
+
+class LLMResponse(BaseModel):
+    response: str
+
+
+# ── Routes ─────────────────────────────────────────────────────────────────────
+
 @app.get('/')
 def read_root():
     return {'Ping': 'Pong'}
@@ -53,18 +76,12 @@ def parse_pipeline(payload: PipelinePayload):
     nodes = payload.nodes
     edges = payload.edges
 
-    num_nodes = len(nodes)
-    num_edges = len(edges)
-
-    # build adjacency list for directed graph (source -> target)
     adj: Dict[str, List[str]] = {n.id: [] for n in nodes}
-
     for e in edges:
         if e.source not in adj:
             adj[e.source] = []
         adj[e.source].append(e.target)
 
-    # detect cycles with DFS
     visited: set = set()
     recstack: set = set()
 
@@ -81,15 +98,44 @@ def parse_pipeline(payload: PipelinePayload):
         recstack.remove(v)
         return False
 
-    cycle_found = False
-    for node_id in list(adj.keys()):
-        if node_id not in visited:
-            if has_cycle(node_id):
-                cycle_found = True
-                break
+    cycle_found = any(
+        has_cycle(node_id)
+        for node_id in list(adj.keys())
+        if node_id not in visited
+    )
 
     return PipelineResult(
-        num_nodes=num_nodes,
-        num_edges=num_edges,
+        num_nodes=len(nodes),
+        num_edges=len(edges),
         is_dag=not cycle_found,
     )
+
+
+@app.post('/pipelines/llm', response_model=LLMResponse)
+async def call_llm(req: LLMRequest):
+    if not OPENROUTER_API_KEY:
+        raise HTTPException(status_code=503, detail="OPENROUTER_API_KEY not configured")
+
+    messages = []
+    if req.system.strip():
+        messages.append({"role": "system", "content": req.system})
+    messages.append({"role": "user", "content": req.prompt})
+
+    async with httpx.AsyncClient(timeout=60) as client:
+        resp = await client.post(
+            OPENROUTER_URL,
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={"model": req.model, "messages": messages},
+        )
+
+    if resp.status_code == 429:
+        raise HTTPException(status_code=429, detail="Rate limited — wait a moment and try again")
+    if resp.status_code != 200:
+        raise HTTPException(status_code=resp.status_code, detail=resp.text)
+
+    data = resp.json()
+    text: str = data["choices"][0]["message"]["content"]
+    return LLMResponse(response=text)

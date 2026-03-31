@@ -4,7 +4,7 @@ dev:
 	make -j2 frontend backend
 
 frontend:
-	cd frontend && npm start
+	cd frontend && npm run dev
 
 backend:
 	cd backend && .venv/bin/uvicorn main:app --reload --port 8000

@@ -118,6 +118,13 @@ button:hover { opacity: 0.95 }
 .vs-submit-bar { position: fixed; left: 0; right: 0; bottom: 12px; display: flex; justify-content: center; pointer-events: none; z-index: 9999 }
 .vs-submit-inner { pointer-events: auto; display: flex; gap: 12px; background: transparent; }
 .vs-submit-inner button { background: #1f6feb; color: white; border: none; padding: 10px 16px; border-radius: 8px }
+.vs-submit-divider { width: 1px; background: rgba(255,255,255,0.15); margin: 4px 2px; }
+
+/* Prevent ReactFlow from dragging nodes when interacting with inputs */
+.nodrag input,
+.nodrag textarea,
+.nodrag select,
+.nodrag button { cursor: auto; }
 
 @media (max-width: 600px) {
   .vs-submit-bar { bottom: calc(env(safe-area-inset-bottom, 12px) + 8px); }
