@@ -19,6 +19,7 @@ const HelpPanel: React.FC = () => {
             <li><strong>Submit</strong> validates the pipeline and highlights cycles.</li>
             <li><strong>Save / Load</strong> persists your pipeline in the browser.</li>
             <li><strong>Undo / Redo</strong> steps through history (up to 50 steps).</li>
+            <li>💡 For the best experience, use a <strong>desktop</strong> browser.</li>
           </ul>
         </div>
       )}
