@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { evaluate } from 'mathjs';
 import { type NodeProps } from 'reactflow';
 import { useStore } from '../store';
 import NodeBase from './NodeBase';
@@ -9,8 +8,9 @@ export const MathNode: React.FC<NodeProps> = ({ id, data }) => {
   const expr: string = data?.expr ?? '1+1';
   const [result, setResult] = useState<string>('');
 
-  const evalExpr = () => {
+  const evalExpr = async () => {
     try {
+      const { evaluate } = await import('mathjs');
       const r = evaluate(expr);
       setResult(String(r));
     } catch {

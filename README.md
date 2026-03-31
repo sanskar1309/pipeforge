@@ -1,21 +1,22 @@
-# Pipeline Builder
+# Pipeforge
 
-A visual, drag-and-drop pipeline designer with real-time DAG validation. Build complex computational workflows by connecting typed nodes, then submit to a FastAPI backend for structural analysis.
+A visual, drag-and-drop pipeline designer with real-time DAG validation and LLM integration. Build computational workflows by connecting typed nodes, validate the structure, and run AI inference — all in the browser.
 
-![Pipeline Builder Demo](https://via.placeholder.com/900x500?text=Pipeline+Builder+Demo)
+**Live demo:** https://pipeforge-beta.vercel.app
 
 ---
 
 ## Overview
 
-Pipeline Builder lets you design data processing workflows visually — no code required. Connect nodes of different types (text processing, math, conditional branching, LLM, logging, and more), then validate the pipeline to ensure it forms a valid Directed Acyclic Graph (no circular dependencies).
+Pipeforge lets you design data processing pipelines visually. Connect nodes of different types (text, math, conditional branching, LLM, logging, and more), validate the pipeline to ensure it forms a valid Directed Acyclic Graph, and run LLM inference directly from the canvas.
 
 **Key capabilities:**
-- 9 built-in node types covering data input, transformation, branching, and output
+- 9 built-in node types covering input, transformation, branching, AI inference, and output
 - Dynamic variable handles on Text nodes via `{{ varName }}` template syntax
-- Client-side cycle detection with visual highlighting of problematic edges
-- FastAPI backend for authoritative DAG validation
-- Dark-themed, responsive UI with minimap and zoom controls
+- Dual cycle detection — client-side (visual feedback) + server-side (authoritative)
+- LLM node with OpenRouter integration — multiple free-tier models
+- Undo/Redo (50 steps), Save/Load pipeline to localStorage
+- TypeScript throughout, Vite build tooling, Vitest test suite
 
 ---
 
@@ -23,9 +24,10 @@ Pipeline Builder lets you design data processing workflows visually — no code 
 
 | Layer | Technology |
 |---|---|
-| Frontend | React 18, React Flow 11, Zustand |
-| Backend | FastAPI, Pydantic v2, Uvicorn |
-| Runtime | Python 3.8+, Node.js 14+ |
+| Frontend | React 18, React Flow 11, Zustand + zundo, TypeScript, Vite |
+| Backend | FastAPI, Pydantic v2, Uvicorn, httpx |
+| Runtime | Python 3.10+, Node.js 22+ |
+| Deployment | Vercel (frontend), Render (backend) |
 
 ---
 
@@ -38,10 +40,10 @@ Pipeline Builder lets you design data processing workflows visually — no code 
 | **Text** | Template string with dynamic `{{ variable }}` handles |
 | **Number** | Numeric constant |
 | **Date** | Date picker input |
-| **Math** | Expression evaluator with live result preview |
+| **Math** | Safe expression evaluator (mathjs) with live result preview |
 | **Condition** | Boolean branch — exposes `true` and `false` output handles |
-| **LLM** | Language model placeholder node |
-| **Logger** | Debug/logging passthrough |
+| **LLM** | Calls OpenRouter API — model selector, system + user prompt, streamed response |
+| **Logger** | Debug passthrough — logs incoming value, forwards to next node |
 
 ---
 
@@ -49,34 +51,61 @@ Pipeline Builder lets you design data processing workflows visually — no code 
 
 ### Prerequisites
 
-- Python 3.8+
-- Node.js 14+ and npm
+- Python 3.10+
+- Node.js 22+ (use `nvm use 22`)
 
-### 1. Start the backend
+### 1. Clone and install
 
 ```bash
+git clone https://github.com/your-username/pipeforge.git
+cd pipeforge
+make install
+```
+
+Or manually:
+
+```bash
+# Backend
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate       # Windows: .venv\Scripts\activate
-pip install fastapi uvicorn
-uvicorn main:app --reload --port 8000
-```
+pip install -r requirements.txt
 
-Backend will be available at `http://localhost:8000`.
-
-### 2. Start the frontend
-
-Open a second terminal:
-
-```bash
+# Frontend
 cd frontend
 npm install
-npm start
 ```
 
-Frontend will open automatically at `http://localhost:3000`.
+### 2. Configure environment
 
-> Both services must run simultaneously for full functionality.
+```bash
+# backend/.env
+OPENROUTER_API_KEY=your_key_here
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+
+# frontend/.env
+VITE_API_URL=http://localhost:8000
+```
+
+### 3. Start both services
+
+```bash
+make dev
+```
+
+Or manually in two terminals:
+
+```bash
+# Terminal 1
+cd backend && .venv/bin/uvicorn main:app --reload --port 8000
+
+# Terminal 2
+cd frontend && npm run dev
+```
+
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:8000`
+- API docs: `http://localhost:8000/docs`
 
 ---
 
@@ -89,25 +118,35 @@ Validates a pipeline and returns structural metrics.
 **Request**
 ```json
 {
-  "nodes": [{ "id": "node-1" }, { "id": "node-2" }],
-  "edges": [{ "source": "node-1", "target": "node-2" }]
+  "nodes": [{ "id": "node-1", "type": "customInput", "data": {}, "position": { "x": 0, "y": 0 } }],
+  "edges": [{ "id": "e1", "source": "node-1", "target": "node-2" }]
 }
 ```
 
 **Response**
 ```json
-{
-  "num_nodes": 2,
-  "num_edges": 1,
-  "is_dag": true
-}
+{ "num_nodes": 2, "num_edges": 1, "is_dag": true }
+```
+
+### `POST /pipelines/llm`
+
+Calls an OpenRouter model and returns the response.
+
+**Request**
+```json
+{ "model": "nvidia/nemotron-3-super-120b-a12b:free", "system": "You are a helpful assistant.", "prompt": "Explain React Server Components" }
+```
+
+**Response**
+```json
+{ "response": "React Server Components are..." }
 ```
 
 **Quick test**
 ```bash
 curl -s -X POST http://localhost:8000/pipelines/parse \
   -H "Content-Type: application/json" \
-  -d '{"nodes":[{"id":"n1"},{"id":"n2"}],"edges":[{"source":"n1","target":"n2"}]}' | jq
+  -d '{"nodes":[{"id":"n1","type":"customInput","data":{},"position":{"x":0,"y":0}},{"id":"n2","type":"customOutput","data":{},"position":{"x":200,"y":0}}],"edges":[{"id":"e1","source":"n1","target":"n2"}]}' | jq
 ```
 
 ---
@@ -115,62 +154,72 @@ curl -s -X POST http://localhost:8000/pipelines/parse \
 ## Project Structure
 
 ```
-.
+pipeforge/
+├── Makefile                  # make dev / make install
+├── render.yaml               # Render backend deploy config
 ├── backend/
-│   └── main.py          # FastAPI app — /pipelines/parse endpoint + DAG validation
+│   ├── main.py               # FastAPI — /pipelines/parse + /pipelines/llm
+│   └── requirements.txt
 └── frontend/
+    ├── index.html
+    ├── vite.config.ts
+    ├── tsconfig.json
     └── src/
-        ├── App.js
-        ├── store.js         # Zustand store — nodes, edges, ReactFlow instance
-        ├── ui.js            # ReactFlow canvas (drag-drop, snap-to-grid)
-        ├── toolbar.js       # Draggable node type palette
-        ├── submit.js        # Submit button + client-side cycle detection
-        ├── ResultModal.js   # Validation results overlay
-        ├── HelpPanel.js     # Toggleable help sidebar
+        ├── App.tsx
+        ├── store.ts              # Zustand + zundo (undo/redo, save/load)
+        ├── ui.tsx                # ReactFlow canvas
+        ├── toolbar.tsx           # Draggable node palette
+        ├── submit.tsx            # Submit bar — undo/redo, save/load, validate
+        ├── detectCycles.ts       # Pure DFS cycle detection (tested)
+        ├── detectCycles.test.ts  # Vitest test suite
+        ├── ResultModal.tsx
+        ├── HelpPanel.tsx
         └── nodes/
-            ├── NodeBase.js       # Shared base for all node types
-            ├── inputNode.js
-            ├── outputNode.js
-            ├── textNode.js
-            ├── numberNode.js
-            ├── dateNode.js
-            ├── mathNode.js
-            ├── conditionNode.js
-            ├── llmNode.js
-            └── loggerNode.js
+            ├── NodeBase.tsx      # Shared base for all node types
+            ├── ScrollCapture.tsx # Fixes trackpad scroll inside ReactFlow nodes
+            ├── inputNode.tsx
+            ├── outputNode.tsx
+            ├── textNode.tsx      # Dynamic {{ varName }} handles
+            ├── numberNode.tsx
+            ├── dateNode.tsx
+            ├── mathNode.tsx      # mathjs (lazy loaded)
+            ├── conditionNode.tsx
+            ├── llmNode.tsx       # OpenRouter integration
+            └── loggerNode.tsx
 ```
 
 ---
 
 ## Architecture Notes
 
-**Dual cycle detection** — Cycle detection runs both client-side (immediate visual feedback, DFS on the frontend) and server-side (authoritative DAG validation via FastAPI). This separates UX responsiveness from correctness guarantees.
+**Dual cycle detection** — DFS runs client-side for instant visual feedback (cycle nodes highlighted red) and server-side via FastAPI for authoritative validation. Logic lives in `detectCycles.ts` — a pure function with no dependencies, independently tested.
 
-**Dynamic handles** — The Text node parses its template string in real time and generates connection handles for each `{{ varName }}` it finds, enabling typed variable wiring between nodes.
+**Dynamic handles** — The Text node parses its template string in real time using `matchAll()` and generates a connection handle for each `{{ varName }}` found, enabling typed variable wiring between nodes.
 
-**NodeBase pattern** — All 9 node types share a common base component that handles handle positioning, dark-theme styling, and consistent layout. Adding a new node type requires only a new component file.
+**NodeBase pattern** — All 9 node types share a common base component handling handle positioning, dark-theme styling, and layout. Adding a new node type is a single file.
 
-**Stateless backend** — The backend performs no persistence. It accepts a pipeline snapshot, validates it, and returns results. All state lives in the React frontend via Zustand.
+**Undo/Redo** — `zundo` wraps the Zustand store with a temporal middleware, partializing to `nodes` and `edges` only. 50-step history limit.
 
----
+**LLM via backend** — OpenRouter calls go through the FastAPI backend, keeping the API key server-side. The frontend never touches the key.
 
-## Development Notes
-
-- CORS is fully open on the backend — tighten for any non-local deployment
-- Math node uses `eval()` for expression parsing — not safe for untrusted user input in production
-- Default ports: backend `8000`, frontend `3000` — both are hardcoded in the frontend fetch call
+**Code splitting** — `mathjs` (~650KB) is dynamically imported only when the Math node's Eval button is clicked, keeping the initial bundle under 310KB.
 
 ---
 
-## Roadmap
+## Running Tests
 
-- [ ] Pipeline persistence (save/load as JSON)
-- [ ] Live pipeline execution (not just validation)
-- [ ] LLM node integration with real model APIs
-- [ ] Node configuration panels (expanded settings per node)
-- [ ] Export pipeline as code
-- [ ] Authentication and multi-user support
-- [ ] Docker Compose for one-command startup
+```bash
+cd frontend
+npm test
+```
+
+---
+
+## Deployment
+
+- **Backend**: Render — set `OPENROUTER_API_KEY` and `ALLOWED_ORIGINS` env vars
+- **Frontend**: Vercel — set `VITE_API_URL` to your Render backend URL
+- Both auto-deploy on `git push` to `main`
 
 ---
 

@@ -7,7 +7,12 @@ export const LoggerNode: React.FC<NodeProps> = ({ id, data }) => {
   const label: string = data?.label ?? 'log';
 
   return (
-    <NodeBase title="Logger" style={{ width: 200 }} leftHandles={[{ id: `${id}-in` }]}>
+    <NodeBase
+      title="Logger"
+      style={{ width: 200 }}
+      leftHandles={[{ id: `${id}-in` }]}
+      rightHandles={[{ id: `${id}-out` }]}
+    >
       <input
         value={label}
         onChange={(e) => updateNodeField(id, 'label', e.target.value)}
