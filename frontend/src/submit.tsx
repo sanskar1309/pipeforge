@@ -97,14 +97,26 @@ export const SubmitButton: React.FC = () => {
     <>
       <div className="vs-submit-bar">
         <div className="vs-submit-inner">
-          <button onClick={() => undo()} disabled={!canUndo} style={btnStyle(!canUndo)} title="Undo">↩ Undo</button>
-          <button onClick={() => redo()} disabled={!canRedo} style={btnStyle(!canRedo)} title="Redo">Redo ↪</button>
+          <button onClick={() => undo()} disabled={!canUndo} style={btnStyle(!canUndo)} title="Undo">
+            <span className="btn-icon">↩</span><span className="btn-label"> Undo</span>
+          </button>
+          <button onClick={() => redo()} disabled={!canRedo} style={btnStyle(!canRedo)} title="Redo">
+            <span className="btn-icon">↪</span><span className="btn-label"> Redo</span>
+          </button>
           <div className="vs-submit-divider" />
-          <button onClick={savePipeline} title="Save to browser">Save</button>
-          <button onClick={loadPipeline} title="Load from browser">Load</button>
+          <button onClick={savePipeline} title="Save to browser">
+            <span className="btn-icon">💾</span><span className="btn-label"> Save</span>
+          </button>
+          <button onClick={loadPipeline} title="Load from browser">
+            <span className="btn-icon">📂</span><span className="btn-label"> Load</span>
+          </button>
           <div className="vs-submit-divider" />
-          <button onClick={handleSubmit}>Submit</button>
-          <button onClick={handleClear}>Clear</button>
+          <button onClick={handleSubmit}>
+            <span className="btn-icon">✓</span><span className="btn-label"> Submit</span>
+          </button>
+          <button onClick={handleClear}>
+            <span className="btn-icon">✕</span><span className="btn-label"> Clear</span>
+          </button>
         </div>
       </div>
       <ResultModal open={modalOpen} onClose={() => setModalOpen(false)} result={modalData} />

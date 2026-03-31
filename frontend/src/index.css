@@ -99,12 +99,13 @@ button:hover { opacity: 0.95 }
     z-index: 9997;
   }
 
-  /* smaller draggable nodes */
+  /* draggable nodes — tap-sized on mobile */
   .draggable {
     min-width: 72px;
+    min-height: 44px;
     height: 48px;
     font-size: 14px;
-    padding: 6px;
+    padding: 6px 10px;
   }
 
   /* move help toggle to top-right on very small screens */
@@ -128,7 +129,23 @@ button:hover { opacity: 0.95 }
 
 @media (max-width: 600px) {
   .vs-submit-bar { bottom: calc(env(safe-area-inset-bottom, 12px) + 8px); }
-  .vs-submit-inner button { padding: 10px 14px; font-size: 15px }
+  .vs-submit-inner {
+    gap: 4px;
+    background: rgba(7,17,34,0.85);
+    backdrop-filter: blur(8px);
+    padding: 6px 8px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .vs-submit-inner button {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 8px 10px;
+    font-size: 18px;
+    border-radius: 8px;
+  }
+  .btn-label { display: none; }
+  .vs-submit-divider { margin: 4px 2px; }
 }
 
 
