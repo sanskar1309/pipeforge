@@ -10,7 +10,9 @@ export default defineConfig({
     chunkSizeWarningLimit: 700,
     modulePreload: {
       resolveDependencies: (_url, deps) =>
-        deps.filter((dep) => !dep.includes('mathjs')),
+        deps.filter(
+          (dep) => !dep.includes('mathjs') && !dep.includes('reactflow')
+        ),
     },
     rollupOptions: {
       output: {

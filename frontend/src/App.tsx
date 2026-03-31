@@ -1,13 +1,17 @@
+import { lazy, Suspense } from 'react';
 import { PipelineToolbar } from './toolbar';
-import { PipelineUI } from './ui';
 import { SubmitButton } from './submit';
 import HelpPanel from './HelpPanel';
+
+const PipelineUI = lazy(() => import('./ui').then((m) => ({ default: m.PipelineUI })));
 
 const App: React.FC = () => (
   <div>
     <HelpPanel />
     <PipelineToolbar />
-    <PipelineUI />
+    <Suspense fallback={null}>
+      <PipelineUI />
+    </Suspense>
     <SubmitButton />
   </div>
 );
